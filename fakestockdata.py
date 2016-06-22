@@ -1,3 +1,4 @@
+from glob import glob
 import os
 import requests
 import zipfile
@@ -27,14 +28,16 @@ def load_file(fn):
                      parse_dates=['date'],
                      infer_datetime_format=True,
                      header=None, index_col='date',
+                     compression='bz2' if fn.endswith('bz2') else None,
                      names=columns).drop('time', axis=1)
 
 
 import numpy as np
-def generate_day(date, open, high, low, close, volume, freq=60):
+def generate_day(date, open, high, low, close, volume,
+                 freq=pd.Timedelta(seconds=60)):
     time = pd.date_range(date + pd.Timedelta(hours=9),
                          date + pd.Timedelta(hours=5 + 12),
-                         freq='%ds' % (freq / 5), name='timestamp')
+                         freq=freq / 5, name='timestamp')
     n = len(time)
     while True:
         values = (np.random.random(n) - 0.5).cumsum()
@@ -55,7 +58,7 @@ def generate_day(date, open, high, low, close, volume, freq=60):
             break                                # this is pretty rare though
 
     s = pd.Series(values.round(3), index=time)
-    rs = s.resample('%ds' % freq)
+    rs = s.resample(freq)
     # TODO: add in volume
     return pd.DataFrame({'open': rs.first(),
                          'close': rs.last(),
@@ -63,8 +66,9 @@ def generate_day(date, open, high, low, close, volume, freq=60):
                          'low': rs.min()})
 
 
-def generate_stock(fn):
-    sym = os.path.split(fn)[1].rsplit('.', 1)[0][len('table_'):]
+def generate_stock(fn, freq=pd.Timedelta(seconds=60)):
+    fn2 = os.path.split(fn)[1]
+    sym = fn2[len('table_'):fn2.find('.csv')]
     if not os.path.exists(os.path.join('data', 'minute')):
         os.mkdir(os.path.join('data', 'minute'))
     if not os.path.exists(os.path.join('data', 'minute', sym)):
@@ -72,6 +76,15 @@ def generate_stock(fn):
 
     df = load_file(fn)
     for date, rec in df.to_dict(orient='index').items():
-        df2 = generate_day(date, **rec)
+        df2 = generate_day(date, freq=freq, **rec)
         fn2 = os.path.join('data', 'minute', sym, str(date).replace(' ', 'T') + '.csv')
         df2.to_csv(fn2)
+
+
+def generate_stocks(freq=pd.Timedelta(seconds=60)):
+    from concurrent.futures import ProcessPoolExecutor, wait
+    e = ProcessPoolExecutor()
+    filenames = sorted(glob(os.path.join('data', 'daily', '*')))
+
+    futures = [e.submit(generate_stock, fn, freq=freq) for fn in filenames]
+    wait(futures)
