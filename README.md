@@ -23,4 +23,4 @@ Use
     $ ipython
 
     >>> from fakestockdata import generate_stocks
-    >>> generate_stocks(freq=pd.Timestamp(minutes=1))
+    >>> generate_stocks(freq=pd.Timedelta(minutes=1))

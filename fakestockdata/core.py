@@ -7,6 +7,9 @@ import pandas as pd
 # https://quantquote.com/historical-stock-data  Free Data tab
 daily_csv_url = 'http://quantquote.com/files/quantquote_daily_sp500_83986.zip'
 
+daily_dir = os.path.join(os.path.split(__file__)[0], 'daily')
+
+
 def download_daily():
     r = requests.get(daily_csv_url, stream=True)
     if not os.path.exists('data'):
@@ -66,25 +69,31 @@ def generate_day(date, open, high, low, close, volume,
                          'low': rs.min()})
 
 
-def generate_stock(fn, freq=pd.Timedelta(seconds=60)):
+def generate_stock(fn, directory=None, freq=pd.Timedelta(seconds=60)):
+    directory = directory or os.path.join('data', 'generated')
     fn2 = os.path.split(fn)[1]
     sym = fn2[len('table_'):fn2.find('.csv')]
-    if not os.path.exists(os.path.join('data', 'minute')):
-        os.mkdir(os.path.join('data', 'minute'))
-    if not os.path.exists(os.path.join('data', 'minute', sym)):
-        os.mkdir(os.path.join('data', 'minute', sym))
+    if not os.path.exists(directory):
+        os.mkdir(directory)
+    if not os.path.exists(os.path.join(directory, sym)):
+        os.mkdir(os.path.join(directory, sym))
 
     df = load_file(fn)
     for date, rec in df.to_dict(orient='index').items():
         df2 = generate_day(date, freq=freq, **rec)
-        fn2 = os.path.join('data', 'minute', sym, str(date).replace(' ', 'T') + '.csv')
+        fn2 = os.path.join(directory, sym, str(date).replace(' ', 'T') + '.csv')
         df2.to_csv(fn2)
 
 
-def generate_stocks(freq=pd.Timedelta(seconds=60)):
+def generate_stocks(freq=pd.Timedelta(seconds=60), directory=None):
     from concurrent.futures import ProcessPoolExecutor, wait
     e = ProcessPoolExecutor()
-    filenames = sorted(glob(os.path.join('data', 'daily', '*')))
+    if os.path.exists(os.path.join('data', 'daily')):
+        glob_path = os.path.join('data', 'daily', '*')
+    else:
+        glob_path = os.path.join(daily_dir, '*')
+    filenames = sorted(glob(glob_path))
 
-    futures = [e.submit(generate_stock, fn, freq=freq) for fn in filenames]
+    futures = [e.submit(generate_stock, fn, directory=directory, freq=freq)
+                for fn in filenames]
     wait(futures)
