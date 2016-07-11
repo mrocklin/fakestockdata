@@ -1,13 +1,14 @@
 from glob import glob
 import os
 import requests
+import sys
 import zipfile
 import pandas as pd
 
 # https://quantquote.com/historical-stock-data  Free Data tab
 daily_csv_url = 'http://quantquote.com/files/quantquote_daily_sp500_83986.zip'
 
-daily_dir = os.path.join(os.path.split(__file__)[0], 'daily')
+daily_dir = os.path.join(sys.prefix, 'share', 'fakestockdata', 'daily')
 
 
 def download_daily():
