@@ -13,8 +13,7 @@ setup(name='fakestockdata',
       license='BSD',
       keywords='',
       packages=['fakestockdata'],
-      package_data={'fakestockdata': ['data/daily/*.bz2']},
-      data_files = [('fakestockdata/daily', glob('data/daily/*'))],
+      data_files = [('share/fakestockdata/daily', glob('data/daily/*'))],
       long_description=(open('README.rst').read() if exists('README.rst')
                         else ''),
       zip_safe=False)
