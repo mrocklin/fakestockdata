@@ -70,7 +70,10 @@ def generate_day(date, open, high, low, close, volume,
                          'low': rs.min()})
 
 
-def generate_stock(fn, directory=None, freq=pd.Timedelta(seconds=60)):
+def generate_stock(fn, directory=None, freq=pd.Timedelta(seconds=60),
+                   start=pd.Timestamp('2000-01-01'),
+                   end=pd.Timestamp('2050-01-01')):
+    start = pd.Timestamp(start)
     directory = directory or os.path.join('data', 'generated')
     fn2 = os.path.split(fn)[1]
     sym = fn2[len('table_'):fn2.find('.csv')]
@@ -81,12 +84,15 @@ def generate_stock(fn, directory=None, freq=pd.Timedelta(seconds=60)):
 
     df = load_file(fn)
     for date, rec in df.to_dict(orient='index').items():
-        df2 = generate_day(date, freq=freq, **rec)
-        fn2 = os.path.join(directory, sym, str(date).replace(' ', 'T') + '.csv')
-        df2.to_csv(fn2)
+        if start <= pd.Timestamp(date) <= end:
+            df2 = generate_day(date, freq=freq, **rec)
+            fn2 = os.path.join(directory, sym, str(date).replace(' ', 'T') + '.csv')
+            df2.to_csv(fn2)
+    print('Finished %s' % sym)
 
 
-def generate_stocks(freq=pd.Timedelta(seconds=60), directory=None):
+def generate_stocks(freq=pd.Timedelta(seconds=60), directory=None,
+                    start=pd.Timestamp('2000-01-01')):
     from concurrent.futures import ProcessPoolExecutor, wait
     e = ProcessPoolExecutor()
     if os.path.exists(os.path.join('data', 'daily')):
@@ -95,6 +101,7 @@ def generate_stocks(freq=pd.Timedelta(seconds=60), directory=None):
         glob_path = os.path.join(daily_dir, '*')
     filenames = sorted(glob(glob_path))
 
-    futures = [e.submit(generate_stock, fn, directory=directory, freq=freq)
+    futures = [e.submit(generate_stock, fn, directory=directory, freq=freq,
+                        start=start)
                 for fn in filenames]
     wait(futures)
